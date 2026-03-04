@@ -4,7 +4,7 @@ Kit de Onboarding Automatizado - Ambiente DEV x64 no Windows 11
 
 .DESCRIPTION
 Instala e configura via WinGet: Java 21 LTS (default) & 17, Node.js v24 (via NVM),
-Python 3.12, habilitando recursos básicos de Linux (WSL2/Ubuntu) e o Docker Desktop.
+Python 3.12, habilitando recursos basicos de Linux (WSL2/Ubuntu) e o Docker Desktop.
 #>
 
 [CmdletBinding()]
@@ -47,7 +47,7 @@ function Write-Step { param([string]$Message) Write-Log -Message $Message -Level
 function Disable-QuickEdit {
     <#
     .SYNOPSIS
-    Desabilita o "Modo de Edição Rápida" do terminal para evitar que cliques acidentais pausem o script.
+    Desabilita o "Modo de Edicao Rapida" do terminal para evitar que cliques acidentais pausem o script.
     #>
     if ($DryRun) { return }
     try {
@@ -85,12 +85,12 @@ function Disable-QuickEdit {
         Write-Log "Modo de Edicao Rapida do terminal desabilitado (previne travamentos por clique)." -Level "INFO"
     }
     catch {
-        # Falha silenciosa se não conseguir injetar o C# (ex: restrição de política)
+        # Falha silenciosa se nao conseguir injetar o C#
     }
 }
 
 function Assert-Admin {
-    Write-Step "Validando permissões de execução (Administrator)..."
+    Write-Step "Validando permissoes de execucao (Administrator)..."
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     
     if ($DryRun) {
@@ -104,7 +104,7 @@ function Assert-Admin {
     }
 
     if (-not $isAdmin) {
-        Write-Log "Permissão negada. O script precisa de privilégios de Administrador." -Level "ERROR"
+        Write-Log "Permissao negada. O script precisa de privilegios de Administrador." -Level "ERROR"
         Write-Log "Abra um terminal PowerShell (ou Windows Terminal) como Administrador e execute novamente." -Level "WARN"
         exit 1
     }
@@ -131,16 +131,16 @@ function Invoke-WinGetInstall {
         return $true
     }
 
-    $args = @("install", "--id", $PackageId, "--exact", "--accept-package-agreements", "--accept-source-agreements", "--silent", "--disable-interactivity")
-    if ($Version) { $args += "--version"; $args += $Version }
+    $wingetArgs = @("install", "--id", $PackageId, "--exact", "--accept-package-agreements", "--accept-source-agreements", "--silent", "--disable-interactivity")
+    if ($Version) { $wingetArgs += "--version"; $wingetArgs += $Version }
 
     try {
         Write-Log "Disparando via WinGet: $PackageId" -Level "INFO"
-        $process = Start-Process winget -ArgumentList $args -NoNewWindow -Wait -PassThru
+        $process = Start-Process winget -ArgumentList $wingetArgs -NoNewWindow -Wait -PassThru
         
-        # exit code -1978335189 no winget indica "já instalado / versão atual já presente"
+        # exit code -1978335189 no winget indica "ja instalado / versao atual ja presente"
         if ($process.ExitCode -ne 0 -and $process.ExitCode -ne -1978335189) { 
-            Write-Log "Falha na instalacao de $PackageId (Código de Saida: $($process.ExitCode))" -Level "WARN"
+            Write-Log "Falha na instalacao de $PackageId (Codigo de Saida: $($process.ExitCode))" -Level "WARN"
             return $false
         }
         else {
@@ -156,7 +156,7 @@ function Invoke-WinGetInstall {
 
 function Enable-WindowsFeaturesForWSL {
     if ($SkipWSL) { return }
-    Write-Step "Habilitando recursos de Virtualização e WSL..."
+    Write-Step "Habilitando recursos de Virtualizacao e WSL..."
     if ($DryRun) { Write-Log "[DryRun] Processaria VirtualMachinePlatform e Subsystem-Linux." -Level "INFO"; return }
     
     try {
@@ -171,18 +171,17 @@ function Enable-WindowsFeaturesForWSL {
 
 function Install-WSLAndDistro {
     if ($SkipWSL) { return }
-    Write-Step "Validando distribuicoes no WSL e inicializando Ubuntu (Padrão)..."
+    Write-Step "Validando distribuicoes no WSL e inicializando Ubuntu (Padrao)..."
     if ($DryRun) { Write-Log "[DryRun] Faria deploy logico de WSL 2 + Ubuntu LTS." -Level "INFO"; return }
 
     try {
         $wslStatus = (wsl.exe -l -v 2>&1 | Out-String)
         if ($wslStatus -match "Ubuntu") {
-            Write-Log "WSL/Ubuntu já esta presente e vivo no sistema." -Level "SUCCESS"
+            Write-Log "WSL/Ubuntu ja esta presente e vivo no sistema." -Level "SUCCESS"
             wsl.exe --set-default-version 2 | Out-Null
         }
         else {
             Write-Log "Instalando Ubuntu explicitamente via WSL..." -Level "INFO"
-            # Tenta instalar sem launch para não bloquear o script
             $installProcess = Start-Process wsl.exe -ArgumentList "--install", "-d", "Ubuntu", "--no-launch" -NoNewWindow -Wait -PassThru
             if ($installProcess.ExitCode -eq 0) {
                 Write-Log "Ubuntu LTS solicitado com sucesso. Pode levar alguns instantes para aparecer em 'wsl -l'." -Level "SUCCESS"
@@ -205,7 +204,7 @@ function Install-Java {
         Invoke-WinGetInstall -PackageId "EclipseAdoptium.Temurin.17.JDK" | Out-Null
     }
     
-    Write-Log "Semeando/Atualizando Java 21 LTS (Branch Padrão do Kit)..." -Level "INFO"
+    Write-Log "Semeando/Atualizando Java 21 LTS (Branch Padrao do Kit)..." -Level "INFO"
     Invoke-WinGetInstall -PackageId "EclipseAdoptium.Temurin.21.JDK" | Out-Null
 }
 
@@ -216,7 +215,7 @@ function Install-NVMAndNode {
     
     if ($DryRun) { Write-Log "[DryRun] Executaria 'nvm install 24' e configuraria default." -Level "INFO"; return }
 
-    # Força a leitura das variaveis de ambiente na sessao atual do PS
+    # Forca a leitura das variaveis de ambiente na sessao atual do PS
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
     
     try {
@@ -236,7 +235,7 @@ function Install-NVMAndNode {
             & $nvmCommand.Source install 24 | Out-Null
             & $nvmCommand.Source use 24 | Out-Null
             
-            # Garante que o node agora está acessivel (pode precisar de refresh de path interno)
+            # Garante que o node agora esta acessivel
             $nodeCheck = Get-Command node -ErrorAction SilentlyContinue
             if ($nodeCheck) {
                 Write-Log "Node 24 ativado e detectado no PATH atual." -Level "SUCCESS"
@@ -246,7 +245,7 @@ function Install-NVMAndNode {
             }
         }
         else {
-            Write-Log "'nvm' nao entrou em hot-reload no PATH. Após abrir um novo terminal, certifique-se de executar: 'nvm install 24' seguida de 'nvm use 24'" -Level "WARN"
+            Write-Log "'nvm' nao entrou em hot-reload no PATH. Apos abrir um novo terminal, certifique-se de executar: 'nvm install 24' seguida de 'nvm use 24'" -Level "WARN"
         }
     }
     catch {
@@ -262,7 +261,7 @@ function Install-Python {
         Invoke-WinGetInstall -PackageId "Python.Python.3.11" | Out-Null
     }
 
-    Write-Log "Processando instalador do Python 3.12 (Padrão)..." -Level "INFO"
+    Write-Log "Processando instalador do Python 3.12 (Padrao)..." -Level "INFO"
     Invoke-WinGetInstall -PackageId "Python.Python.3.12" | Out-Null
 }
 
@@ -273,7 +272,7 @@ function Install-DockerDesktop {
 }
 
 function Configure-EnvironmentVariables {
-    Write-Step "Higienizando Variáveis de Ambiente..."
+    Write-Step "Higienizando Variaveis de Ambiente..."
     if ($DryRun) { Write-Log "[DryRun] Configuraria/Validaria JAVA_HOME global." -Level "INFO"; return }
     
     try {
@@ -302,7 +301,7 @@ function Start-Or-Verify-DockerDesktop {
     if (Test-Path $dockerExe) {
         $process = Get-Process "Docker Desktop" -ErrorAction SilentlyContinue
         if (-not $process) {
-            Write-Log "Ouvindo serviço do Docker Desktop (pode levar 3 min para aquecer a engine)..." -Level "INFO"
+            Write-Log "Ouvindo servico do Docker Desktop (pode levar 3 min para aquecer a engine)..." -Level "INFO"
             Start-Process $dockerExe -NoNewWindow
             Write-Log "Background Watcher disparado." -Level "SUCCESS"
         }
@@ -311,7 +310,7 @@ function Start-Or-Verify-DockerDesktop {
         }
     }
     else {
-        Write-Log "Binario da UI do Docker não rastreado em caminho padrao." -Level "WARN"
+        Write-Log "Binario da UI do Docker nao rastreado em caminho padrao." -Level "WARN"
     }
 }
 
@@ -332,12 +331,17 @@ function Main {
         Disable-QuickEdit
         Assert-Admin
         Assert-WinGet
-        Enable-WindowsFeaturesForWSL
-        Install-WSLAndDistro
+        
+        # Ordem refinada: Linguagens primeiro, depois WSL e por fim Docker (que depende do WSL)
         Install-Java
         Install-NVMAndNode
         Install-Python
+        
+        Enable-WindowsFeaturesForWSL
+        Install-WSLAndDistro
+        
         Install-DockerDesktop
+        
         Configure-EnvironmentVariables
         Start-Or-Verify-DockerDesktop
         Validate-Tools
@@ -346,7 +350,7 @@ function Main {
         Write-Log "==========================================================" -Level "SUCCESS"
         Write-Log " AMBIENTE IMPLANTADO COM SUCESSO! " -Level "SUCCESS"
         Write-Log "==========================================================" -Level "SUCCESS"
-        Write-Log "1. SE você instalou WSL ou Docker hoje, REINICIE SEU COMPUTADOR agora." -Level "WARN"
+        Write-Log "1. SE voce instalou WSL ou Docker hoje, REINICIE SEU COMPUTADOR agora." -Level "WARN"
         Write-Log "2. FECHE ESTA JANELA. Abra um (NOVO) terminal sem ser admin para recarregar as paths." -Level "WARN"
         Write-Log "3. Acompanhe os comandos de test coverage TDD no Pester contidos no README." -Level "INFO"
     }

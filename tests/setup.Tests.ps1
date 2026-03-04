@@ -11,7 +11,7 @@ Describe "Validacao Final do Ambiente de DEV (Sanity Check)" {
             $javaHome | Should Match "jdk-21\."
         }
 
-        It "A versão CLI default em execucao ativa deve refletir Java 21 LTS" {
+        It "A versao CLI default em execucao ativa deve refletir Java 21 LTS" {
             $javaVersion = (java -version 2>&1) -join " "
             $javaVersion | Should Match "version `"21"
         }
@@ -29,14 +29,14 @@ Describe "Validacao Final do Ambiente de DEV (Sanity Check)" {
             $nodeVersion | Should Match "^v24"
         }
         
-        It "Gerenciador do ecossistema Node ('npm') deve expor metadados de versão com integridade logica" {
+        It "Gerenciador do ecossistema Node ('npm') deve expor metadados de versao com integridade logica" {
             $npmVersion = npm -v 2>&1
             $npmVersion | Should Match "^[0-9]{1,2}\."
         }
     }
 
     Context "Ecossistema Python e Pipelines" {
-        It "Interpretador 'python' expõe a versao 3.12 com sucesso" {
+        It "Interpretador 'python' expoe a versao 3.12 com sucesso" {
             $pythonVersion = (python --version 2>&1) -join " "
             $pythonVersion | Should Match "Python 3\.12"
         }
@@ -62,7 +62,7 @@ Describe "Validacao Final do Ambiente de DEV (Sanity Check)" {
     }
 
     Context "CLI do Docker e WSL2 Backends" {
-        It "Console root do Docker (docker cli) está injetado na session path" {
+        It "Console root do Docker (docker cli) esta injetado na session path" {
             $dockerVersion = (docker --version 2>&1) -join " "
             $dockerVersion | Should Match "Docker version"
         }
@@ -72,7 +72,7 @@ Describe "Validacao Final do Ambiente de DEV (Sanity Check)" {
             $composeVersion | Should Match "Docker Compose version"
         }
 
-        It "O processo daemon do Docker está hospedado em memoria pronto para responder pipes" {
+        It "O processo daemon do Docker esta hospedado em memoria pronto para responder pipes" {
             $dockerInfo = (docker info 2>&1) -join " "
             $dockerInfo | Should Not Match "error during connect"
         }
