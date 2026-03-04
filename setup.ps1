@@ -44,6 +44,51 @@ function Write-Log {
 
 function Write-Step { param([string]$Message) Write-Log -Message $Message -Level "STEP" }
 
+function Disable-QuickEdit {
+    <#
+    .SYNOPSIS
+    Desabilita o "Modo de Edição Rápida" do terminal para evitar que cliques acidentais pausem o script.
+    #>
+    if ($DryRun) { return }
+    try {
+        $code = @"
+        using System;
+        using System.Runtime.InteropServices;
+
+        public class ConsoleHelper {
+            [DllImport("kernel32.dll", SetLastError = true)]
+            private static extern IntPtr GetStdHandle(int nStdHandle);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            private static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            private static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
+
+            private const int STD_INPUT_HANDLE = -10;
+            private const uint ENABLE_QUICK_EDIT_MODE = 0x0040;
+            private const uint ENABLE_EXTENDED_FLAGS = 0x0080;
+
+            public static void DisableQuickEdit() {
+                IntPtr hStdin = GetStdHandle(STD_INPUT_HANDLE);
+                uint mode;
+                if (GetConsoleMode(hStdin, out mode)) {
+                    mode &= ~ENABLE_QUICK_EDIT_MODE;
+                    mode |= ENABLE_EXTENDED_FLAGS;
+                    SetConsoleMode(hStdin, mode);
+                }
+            }
+        }
+"@
+        Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
+        [ConsoleHelper]::DisableQuickEdit()
+        Write-Log "Modo de Edicao Rapida do terminal desabilitado (previne travamentos por clique)." -Level "INFO"
+    }
+    catch {
+        # Falha silenciosa se não conseguir injetar o C# (ex: restrição de política)
+    }
+}
+
 function Assert-Admin {
     Write-Step "Validando permissões de execução (Administrator)..."
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -86,7 +131,7 @@ function Invoke-WinGetInstall {
         return $true
     }
 
-    $args = @("install", "--id", $PackageId, "--exact", "--accept-package-agreements", "--accept-source-agreements", "--silent")
+    $args = @("install", "--id", $PackageId, "--exact", "--accept-package-agreements", "--accept-source-agreements", "--silent", "--disable-interactivity")
     if ($Version) { $args += "--version"; $args += $Version }
 
     try {
@@ -130,15 +175,21 @@ function Install-WSLAndDistro {
     if ($DryRun) { Write-Log "[DryRun] Faria deploy logico de WSL 2 + Ubuntu LTS." -Level "INFO"; return }
 
     try {
-        $wslStatus = (wsl -l -v 2>&1) -join " "
+        $wslStatus = (wsl.exe -l -v 2>&1 | Out-String)
         if ($wslStatus -match "Ubuntu") {
             Write-Log "WSL/Ubuntu já esta presente e vivo no sistema." -Level "SUCCESS"
-            wsl --set-default-version 2 | Out-Null
+            wsl.exe --set-default-version 2 | Out-Null
         }
         else {
-            Write-Log "Disparando instalador nativo do Windows Subsystem for Linux (--install)..." -Level "INFO"
-            Start-Process wsl -ArgumentList "--install", "--no-launch" -NoNewWindow -Wait
-            Write-Log "Ubuntu LTS ancorado via WSL." -Level "SUCCESS"
+            Write-Log "Instalando Ubuntu explicitamente via WSL..." -Level "INFO"
+            # Tenta instalar sem launch para não bloquear o script
+            $installProcess = Start-Process wsl.exe -ArgumentList "--install", "-d", "Ubuntu", "--no-launch" -NoNewWindow -Wait -PassThru
+            if ($installProcess.ExitCode -eq 0) {
+                Write-Log "Ubuntu LTS solicitado com sucesso. Pode levar alguns instantes para aparecer em 'wsl -l'." -Level "SUCCESS"
+            }
+            else {
+                Write-Log "Aviso: 'wsl --install' retornou codigo $($installProcess.ExitCode). Se for a primeira vez, reinicie e rode o script novamente." -Level "WARN"
+            }
         }
     }
     catch {
@@ -179,12 +230,20 @@ function Install-NVMAndNode {
         if ($nvmCommand) {
             if ($InstallNode20) {
                 Write-Log "Requisitando Node 20 para o Pool NVM..." -Level "INFO"
-                nvm install 20 | Out-Null
+                & $nvmCommand.Source install 20 | Out-Null
             }
             Write-Log "Processando Node LTS 24..." -Level "INFO"
-            nvm install 24 | Out-Null
-            nvm use 24 | Out-Null
-            Write-Log "NPM local e Node 24 ativados na arvore nativa." -Level "SUCCESS"
+            & $nvmCommand.Source install 24 | Out-Null
+            & $nvmCommand.Source use 24 | Out-Null
+            
+            # Garante que o node agora está acessivel (pode precisar de refresh de path interno)
+            $nodeCheck = Get-Command node -ErrorAction SilentlyContinue
+            if ($nodeCheck) {
+                Write-Log "Node 24 ativado e detectado no PATH atual." -Level "SUCCESS"
+            }
+            else {
+                Write-Log "Node 24 instalado, mas Symlink pode exigir novo terminal para ser lido." -Level "WARN"
+            }
         }
         else {
             Write-Log "'nvm' nao entrou em hot-reload no PATH. Após abrir um novo terminal, certifique-se de executar: 'nvm install 24' seguida de 'nvm use 24'" -Level "WARN"
@@ -270,6 +329,7 @@ function Main {
     Write-Log "==========================================================" -Level "INFO"
 
     try {
+        Disable-QuickEdit
         Assert-Admin
         Assert-WinGet
         Enable-WindowsFeaturesForWSL

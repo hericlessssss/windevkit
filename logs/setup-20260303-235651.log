@@ -1,7 +1,0 @@
-[2026-03-03 23:56:51] [INFO] 
-[2026-03-03 23:56:52] [INFO] ==========================================================
-[2026-03-03 23:56:52] [INFO]  BOOTSTRAP DO AMBIENTE DE DESENVOLVEDOR - ONBOARDING 
-[2026-03-03 23:56:52] [INFO] ==========================================================
-[2026-03-03 23:56:52] [STEP] Validando permissões de execução (Administrator)...
-[2026-03-03 23:56:52] [ERROR] Permissão negada. O script precisa de privilégios de Administrador.
-[2026-03-03 23:56:52] [WARN] Abra um terminal PowerShell (ou Windows Terminal) como Administrador e execute novamente.
